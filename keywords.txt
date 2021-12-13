@@ -1,0 +1,18 @@
+# keywords for ESPEvent library
+
+# classes
+ESPZoneDetect	KEYWORD1
+
+# functions
+OpenDatabaseFromMemory(void* buffer, size_t length)	KEYWORD2
+OpenDatabase(fs::File* fd)	KEYWORD2
+SetErrorHandler(zdErrorHandler_t handler)	KEYWORD2
+SetCleanUp(zdCleanup_t cleanUp)	KEYWORD2
+Lookup(double lat, double lon)	KEYWORD2
+LookupString(double lat, double lon)	KEYWORD2
+LookupResultToString(ZDLookupResult result)	KEYWORD2
+GetErrorString(ZDInternalError errZD)	KEYWORD2
+GetNotice()	KEYWORD2
+GetTableType()	KEYWORD2
+
+# constants

@@ -1,0 +1,33 @@
+{
+  "name": "ESPZoneDetect",
+  "version": "1.0.0",
+  "description": "A GPS coordinate to time zonelibrary for ESP8266/ESP32.",
+  "keywords": "time",
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/abaskin/ESPZoneDetect"
+  },
+  "authors":
+  [
+    {
+      "name": "Andre Baskin",
+      "email": "andre@telatomica.com",
+      "url": "https://github.com/abaskin",
+      "maintainer": true
+    }
+  ],
+  "license": "MIT",
+  "homepage": "",
+  "exclude": [
+    ".github"
+  ],
+  "frameworks": "arduino",
+  "platforms": [
+    "espressif32",
+    "espressif8266"
+  ],
+  "dependencies":
+  {
+  }
+}
