@@ -61,7 +61,7 @@ Set a handler to be called on object destruction. This can be used to close the
 database file or release the database memory.
 
 ```c++
-std::tuple<std::vector<ZoneDetectResult>, double> Lookup(double lat, double lon)
+std::pair<std::vector<ZoneDetectResult>, double> Lookup(double lat, double lon)
 ```
 
 - **lat** - the latitude of the location to lookup
@@ -72,7 +72,7 @@ double value in the result is the distance to the nearest border and may be used
 for further processing depending in the accuracy of the databased used.
 
 ```c++
-std::string LookupString(double lat, double lon)
+std::string LookupName(double lat, double lon)
 ```
 
 - **lat** - the latitude of the location to lookup
@@ -80,6 +80,24 @@ std::string LookupString(double lat, double lon)
 
 Lookup the given GPS coordinates and return timezone or country name as a string.
 
+```c++
+std::string LookupPosix(double lat, double lon)
+```
+
+- **lat** - the latitude of the location to lookup
+- **lon** - the longitude of the location to lookup
+
+Lookup the given GPS coordinates and return posix timezone as a string.
+
+```c++
+std::array<std::string, 2> LookupBoth(double lat, double lon) const;
+```
+
+- **lat** - the latitude of the location to lookup
+- **lon** - the longitude of the location to lookup
+
+Lookup the given GPS coordinates and return timezone or country name and the
+posix timezone as a string array.
 
 ```c++
 LookupResultToString(ZDLookupResult result)

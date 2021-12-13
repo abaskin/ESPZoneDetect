@@ -42,10 +42,11 @@
 #include <FS.h>
 #include <stdint.h>
 
+##include <array>
 #include <functional>
 #include <memory>
 #include <string>
-#include <tuple>
+#include <pair>
 #include <unordered_map>
 #include <vector>
 
@@ -95,9 +96,11 @@ class ESPZoneDetect{
     void SetErrorHandler(zdErrorHandler_t handler);
     void SetCleanUp(zdCleanup_t cleanUp);
 
-    std::tuple<std::vector<ZoneDetectResult>, double> // safezone
+    std::pair<std::vector<ZoneDetectResult>, double> // safezone
         Lookup(double lat, double lon) const;
-    std::string LookupString(double lat, double lon) const;
+    std::string LookupName(double lat, double lon) const;
+    std::string LookupPosix(double lat, double lon) const;
+    std::array<std::string, 2> LookupBoth(double lat, double lon) const;
 
     const char* LookupResultToString(ZDLookupResult result) const;
     const char* GetErrorString(ZDInternalError errZD) const;
@@ -193,6 +196,8 @@ class ESPZoneDetect{
     std::vector<double> PolygonToList(uint32_t polygonId) const;
     std::tuple<ZDLookupResult, uint64_t> PointInPolygon(
       uint32_t polygonIndex, int32_t latFixedPoint, int32_t lonFixedPoint) const;
+
+    std::string getPosix(std::string tzName) const;
 
     bool m_mounted{false}, m_fileOpen{false};
     zdErrorHandler_t m_zdErrorHandler{[](ZDInternalError, int32_t){}};

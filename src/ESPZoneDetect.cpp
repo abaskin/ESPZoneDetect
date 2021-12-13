@@ -85,7 +85,7 @@ bool ESPZoneDetect::OpenDatabase(fs::File* fd) {
   return true;
 }
 
-std::tuple<std::vector<ESPZoneDetect::ZoneDetectResult>, double>
+std::pair<std::vector<ESPZoneDetect::ZoneDetectResult>, double>
 ESPZoneDetect::Lookup(double lat, double lon) const {
   const auto latFixedPoint{DoubleToFixedPoint(lat, 90)};
   const auto lonFixedPoint{DoubleToFixedPoint(lon, 180)};
@@ -187,11 +187,11 @@ ESPZoneDetect::Lookup(double lat, double lon) const {
       .lookupResult = ZD_LOOKUP_END,
   });
 
-  return {results, sqrt((double)distanceSqrMin) * 90.0 / 
+  return {results, sqrt((double)distanceSqrMin) * 90.0 /
                    (double)(1 << (m_precision - 1))};
 }
 
-std::string ESPZoneDetect::LookupString(
+std::string ESPZoneDetect::LookupName(
     double lat, double lon) const {
   auto [result, safezone]{Lookup(lat, lon)};
   if (result.empty() || result[0].lookupResult == ZD_LOOKUP_END) {
@@ -219,6 +219,28 @@ std::string ESPZoneDetect::LookupString(
   }
 
   return resultString;
+}
+
+std::string ESPZoneDetect::LookupPosix(double lat, double lon) const {
+  return getPosix(LookupName(lat, lon));
+}
+
+std::array<std::string, 2> ESPZoneDetect::LookupBoth(double lat, double lon) const {
+  auto tzName { LookupName(lat, lon) };
+  return { tzName, getPosix(tzName) };
+}
+
+std::string ESPZoneDetect::getPosix(std::string& tzName) const {
+  if (!tzName.empty()) {
+    for (auto const& tz : tzData) {
+      strcpy_P(tzStr, tz);
+      if (auto colon = strchr(tzStr, ':'); colon) {
+        *colon++ = '\0';
+        if (tzName == tzStr) return colon;
+      }
+    }
+  }
+  return "" ;
 }
 
 const char* ESPZoneDetect::LookupResultToString(ZDLookupResult result) const {
@@ -740,7 +762,7 @@ ESPZoneDetect::Reader::GetPoint() {
           m_referenceEnd--;
         }
         continue;
-      }   
+      }
       default:
         break;
       }
