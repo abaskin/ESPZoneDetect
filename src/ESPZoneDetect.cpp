@@ -696,7 +696,7 @@ std::tuple<ESPZoneDetect::ZDLookupResult, uint64_t>
 }
 
 // ---- Reader ----
-ESPZoneDetect::Reader::Reader(const ESPZoneDetect *parent, uint32_t polygonIndex)
+ESPZoneDetect::Reader::Reader(const ESPZoneDetect *parent, const uint32_t polygonIndex)
     : m_parent(parent), m_polygonIndex(polygonIndex) {}
 
 ESPZoneDetect::Reader::~Reader(){}

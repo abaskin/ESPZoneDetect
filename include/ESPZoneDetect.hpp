@@ -46,8 +46,9 @@
 #include <functional>
 #include <memory>
 #include <string>
-#include <utility>
+#include <tuple>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #ifndef INCL_ESPZONEDETECT_H_
@@ -123,7 +124,7 @@ class ESPZoneDetect{
           m_memBuffer = buffer;
         }
 
-        uint8_t* at(uint32_t index) const {
+        uint8_t* at(const uint32_t index) const {
           if (!m_fileBuffer) { return &m_memBuffer[index]; }
           if (index < m_filePosition ||
               index > m_filePosition + m_bufferSize - sizeof(uint64_t) - 1) {
@@ -134,7 +135,7 @@ class ESPZoneDetect{
           return &m_fileBuffer[index - m_filePosition];
         }
 
-        uint64_t* atUint64(uint32_t index) const {
+        uint64_t* atUint64(const uint32_t index) const {
           std::memcpy(m_uint64Buffer.get(), at(index), sizeof(uint64_t));
           return m_uint64Buffer.get();
         }
@@ -158,7 +159,7 @@ class ESPZoneDetect{
           PointOK,
         };
 
-        Reader(const ESPZoneDetect* parent, uint32_t polygonIndex);
+        Reader(const ESPZoneDetect* parent, const uint32_t polygonIndex);
         ~Reader();
 
         std::tuple<GetPointResult, int32_t, int32_t> GetPoint();
@@ -199,7 +200,6 @@ class ESPZoneDetect{
 
     std::string getPosix(const std::string& tzName) const;
 
-    bool m_mounted{false}, m_fileOpen{false};
     zdErrorHandler_t m_zdErrorHandler{[](ZDInternalError, int32_t){}};
     zdCleanup_t m_cleanUp{[](){}};
 
