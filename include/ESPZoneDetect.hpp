@@ -91,19 +91,19 @@ class ESPZoneDetect{
     ESPZoneDetect();
     ~ESPZoneDetect();
 
-    bool OpenDatabaseFromMemory(void* buffer, size_t length);
+    bool OpenDatabaseFromMemory(void* buffer, const size_t length);
     bool OpenDatabase(fs::File* fd);
     void SetErrorHandler(zdErrorHandler_t handler);
     void SetCleanUp(zdCleanup_t cleanUp);
 
     std::pair<std::vector<ZoneDetectResult>, double> // safezone
-        Lookup(double lat, double lon) const;
-    std::string LookupName(double lat, double lon) const;
-    std::string LookupPosix(double lat, double lon) const;
-    std::array<std::string, 2> LookupBoth(double lat, double lon) const;
+        Lookup(const double lat, const double lon) const;
+    std::string LookupName(const double lat, const double lon) const;
+    std::string LookupPosix(const double lat, const double lon) const;
+    std::array<std::string, 2> LookupBoth(const double lat, const double lon) const;
 
-    const char* LookupResultToString(ZDLookupResult result) const;
-    const char* GetErrorString(ZDInternalError errZD) const;
+    const char* LookupResultToString(const ZDLookupResult result) const;
+    const char* GetErrorString(const ZDInternalError errZD) const;
 
     const char* GetNotice() const;
     uint8_t GetTableType() const;
@@ -176,28 +176,28 @@ class ESPZoneDetect{
         int32_t m_firstLat{0}, m_firstLon{0};
     };
 
-    int32_t DoubleToFixedPoint(double input, double scale) const;
-    double FixedPointToDouble(int32_t input, double scale) const;
+    int32_t DoubleToFixedPoint(const double input, const double scale) const;
+    double FixedPointToDouble(const int32_t input, const double scale) const;
 
     bool DecodeVariableLengthUnsigned(uint32_t& index, uint64_t& result) const ;
     bool DecodeVariableLengthUnsignedReverse(uint32_t& index, uint64_t& result) const ;
     bool DecodeVariableLengthSigned(uint32_t& index, int32_t& result) const;
-    int64_t DecodeUnsignedToSigned(uint64_t value) const;
+    int64_t DecodeUnsignedToSigned(const uint64_t value) const;
 
     std::string ParseString(uint32_t& index) const;
     ZDLookupResult ParseHeader();
 
-    bool PointInBox(int32_t xl, int32_t x, int32_t xr,
-                    int32_t yl, int32_t y, int32_t yr) const;
+    bool PointInBox(const int32_t xl, const int32_t x, const int32_t xr,
+                    const int32_t yl, const int32_t y, const int32_t yr) const;
     uint32_t Unshuffle(uint64_t w) const;
 
-    std::tuple<bool, int32_t, int32_t> FindPolygon(uint32_t wantedId) const;
-    std::vector<int32_t> PolygonToListInternal(uint32_t polygonIndex) const;
-    std::vector<double> PolygonToList(uint32_t polygonId) const;
+    std::tuple<bool, int32_t, int32_t> FindPolygon(const uint32_t wantedId) const;
+    std::vector<int32_t> PolygonToListInternal(const uint32_t polygonIndex) const;
+    std::vector<double> PolygonToList(const uint32_t polygonId) const;
     std::tuple<ZDLookupResult, uint64_t> PointInPolygon(
-      uint32_t polygonIndex, int32_t latFixedPoint, int32_t lonFixedPoint) const;
+      const uint32_t polygonIndex, const int32_t latFixedPoint, const int32_t lonFixedPoint) const;
 
-    std::string getPosix(std::string& tzName) const;
+    std::string getPosix(const std::string& tzName) const;
 
     bool m_mounted{false}, m_fileOpen{false};
     zdErrorHandler_t m_zdErrorHandler{[](ZDInternalError, int32_t){}};

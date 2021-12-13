@@ -26,6 +26,7 @@
  */
 
 #include "ESPZoneDetect.hpp"
+#include "tzData.hpp"
 
 #include <algorithm>
 #include <array>
@@ -41,7 +42,7 @@ ESPZoneDetect::~ESPZoneDetect() {
   m_cleanUp();
 }
 
-bool ESPZoneDetect::OpenDatabaseFromMemory(void* buffer, size_t length) {
+bool ESPZoneDetect::OpenDatabaseFromMemory(void* buffer, const size_t length) {
   if (m_length = (uint32_t)length; m_length == 0) {
     m_zdErrorHandler(ZD_E_DB_SEEK, 0);
     return false;
@@ -86,7 +87,7 @@ bool ESPZoneDetect::OpenDatabase(fs::File* fd) {
 }
 
 std::pair<std::vector<ESPZoneDetect::ZoneDetectResult>, double>
-ESPZoneDetect::Lookup(double lat, double lon) const {
+ESPZoneDetect::Lookup(const double lat, const double lon) const {
   const auto latFixedPoint{DoubleToFixedPoint(lat, 90)};
   const auto lonFixedPoint{DoubleToFixedPoint(lon, 180)};
   uint64_t distanceSqrMin{(uint64_t)-1};
@@ -192,7 +193,7 @@ ESPZoneDetect::Lookup(double lat, double lon) const {
 }
 
 std::string ESPZoneDetect::LookupName(
-    double lat, double lon) const {
+    const double lat, const double lon) const {
   auto [result, safezone]{Lookup(lat, lon)};
   if (result.empty() || result[0].lookupResult == ZD_LOOKUP_END) {
     return "";
@@ -221,17 +222,19 @@ std::string ESPZoneDetect::LookupName(
   return resultString;
 }
 
-std::string ESPZoneDetect::LookupPosix(double lat, double lon) const {
-  return getPosix(LookupName(lat, lon));
+std::string ESPZoneDetect::LookupPosix(const double lat, const double lon) const {
+  auto tzName { LookupName(lat, lon) };
+  return getPosix(tzName);
 }
 
-std::array<std::string, 2> ESPZoneDetect::LookupBoth(double lat, double lon) const {
+std::array<std::string, 2> ESPZoneDetect::LookupBoth(const double lat, const double lon) const {
   auto tzName { LookupName(lat, lon) };
   return { tzName, getPosix(tzName) };
 }
 
-std::string ESPZoneDetect::getPosix(std::string& tzName) const {
+std::string ESPZoneDetect::getPosix(const std::string& tzName) const {
   if (!tzName.empty()) {
+    char tzStr[128];
     for (auto const& tz : tzData) {
       strcpy_P(tzStr, tz);
       if (auto colon = strchr(tzStr, ':'); colon) {
@@ -291,11 +294,11 @@ const char* ESPZoneDetect::GetNotice() const { return m_notice.c_str(); }
 
 // ---- private ----
 
-int32_t ESPZoneDetect::DoubleToFixedPoint(double input, double scale) const {
+int32_t ESPZoneDetect::DoubleToFixedPoint(const double input, const double scale) const {
   return (int32_t)((input / scale) * (double)(1 << (m_precision - 1)));
 }
 
-double ESPZoneDetect::FixedPointToDouble(int32_t input, double scale) const {
+double ESPZoneDetect::FixedPointToDouble(const int32_t input, const double scale) const {
   return ((double)input / (double)(1 << (m_precision - 1))) * scale;
 }
 
@@ -337,7 +340,7 @@ bool ESPZoneDetect::DecodeVariableLengthUnsignedReverse(
   return DecodeVariableLengthUnsigned(i2, result);
 }
 
-int64_t ESPZoneDetect::DecodeUnsignedToSigned(uint64_t value) const {
+int64_t ESPZoneDetect::DecodeUnsignedToSigned(const uint64_t value) const {
   return (value & 1) ? -(int64_t)(value / 2) : (int64_t)(value / 2);
 }
 
@@ -437,8 +440,8 @@ ESPZoneDetect::ZDLookupResult ESPZoneDetect::ParseHeader() {
   return ZD_LOOKUP_PARSE_OK;
 }
 
-bool ESPZoneDetect::PointInBox(int32_t xl, int32_t x, int32_t xr, int32_t yl,
-                               int32_t y, int32_t yr) const {
+bool ESPZoneDetect::PointInBox(const int32_t xl, const int32_t x, const int32_t xr,
+                               const int32_t yl, const int32_t y, const int32_t yr) const {
   return ((xl <= x && x <= xr) || (xr <= x && x <= xl)) &&
          ((yl <= y && y <= yr) || (yr <= y && y <= yl));
 }
@@ -453,7 +456,7 @@ uint32_t ESPZoneDetect::Unshuffle(uint64_t w) const {
   return (uint32_t)w;
 }
 
-std::tuple<bool, int32_t, int32_t> ESPZoneDetect::FindPolygon(uint32_t wantedId) const {
+std::tuple<bool, int32_t, int32_t> ESPZoneDetect::FindPolygon(const uint32_t wantedId) const {
   uint32_t polygonId { 0 },
            bboxIndex { m_bboxOffset },
            metadataIndex { 0 },
@@ -489,7 +492,7 @@ std::tuple<bool, int32_t, int32_t> ESPZoneDetect::FindPolygon(uint32_t wantedId)
   return { false, 0, 0 };
 }
 
-std::vector<int32_t> ESPZoneDetect::PolygonToListInternal(uint32_t polygonIndex) const {
+std::vector<int32_t> ESPZoneDetect::PolygonToListInternal(const uint32_t polygonIndex) const {
   std::unique_ptr<Reader> reader {new Reader { this, polygonIndex }};
 
   std::vector<int32_t> list;
@@ -513,7 +516,7 @@ std::vector<int32_t> ESPZoneDetect::PolygonToListInternal(uint32_t polygonIndex)
   return list;
 }
 
-std::vector<double> ESPZoneDetect::PolygonToList(uint32_t polygonId) const {
+std::vector<double> ESPZoneDetect::PolygonToList(const uint32_t polygonId) const {
   std::vector<double> flData;
 
   auto [found, metaDataIndex, polygonIndex] {FindPolygon(polygonId)};
@@ -536,8 +539,8 @@ std::vector<double> ESPZoneDetect::PolygonToList(uint32_t polygonId) const {
 }
 
 std::tuple<ESPZoneDetect::ZDLookupResult, uint64_t>
-  ESPZoneDetect::PointInPolygon(uint32_t polygonIndex, int32_t latFixedPoint,
-                                int32_t lonFixedPoint) const {
+  ESPZoneDetect::PointInPolygon(const uint32_t polygonIndex, const int32_t latFixedPoint,
+                                const int32_t lonFixedPoint) const {
   int32_t prevLat { 0 }, prevLon { 0 },
           prevQuadrant { 0 }, winding { 0 };
   bool first { true };

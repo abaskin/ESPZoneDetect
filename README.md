@@ -26,7 +26,7 @@ ESPZoneDetect objectName();
 ## Object Methods
 
 ```c++
-bool OpenDatabaseFromMemory(void* buffer, size_t length)
+bool OpenDatabaseFromMemory(void* buffer, const size_t length)
 ```
 
 - **buffer** - the address of the in memory database
@@ -61,7 +61,7 @@ Set a handler to be called on object destruction. This can be used to close the
 database file or release the database memory.
 
 ```c++
-std::pair<std::vector<ZoneDetectResult>, double> Lookup(double lat, double lon)
+std::pair<std::vector<ZoneDetectResult>, double> Lookup(const double lat, const double lon)
 ```
 
 - **lat** - the latitude of the location to lookup
@@ -72,7 +72,7 @@ double value in the result is the distance to the nearest border and may be used
 for further processing depending in the accuracy of the databased used.
 
 ```c++
-std::string LookupName(double lat, double lon)
+std::string LookupName(const double lat, const double lon)
 ```
 
 - **lat** - the latitude of the location to lookup
@@ -81,7 +81,7 @@ std::string LookupName(double lat, double lon)
 Lookup the given GPS coordinates and return timezone or country name as a string.
 
 ```c++
-std::string LookupPosix(double lat, double lon)
+std::string LookupPosix(const double lat, const double lon)
 ```
 
 - **lat** - the latitude of the location to lookup
@@ -90,7 +90,7 @@ std::string LookupPosix(double lat, double lon)
 Lookup the given GPS coordinates and return posix timezone as a string.
 
 ```c++
-std::array<std::string, 2> LookupBoth(double lat, double lon) const;
+std::array<std::string, 2> LookupBoth(const double lat, const double lon) const;
 ```
 
 - **lat** - the latitude of the location to lookup
@@ -100,7 +100,7 @@ Lookup the given GPS coordinates and return timezone or country name and the
 posix timezone as a string array.
 
 ```c++
-LookupResultToString(ZDLookupResult result)
+LookupResultToString(const ZDLookupResult result)
 ```
 
 - **result** - the lookup result
@@ -109,7 +109,7 @@ Return the result string for the ZDLookupResult found in the ZoneDetectResult
 structure.
 
 ```c++
-const char* GetErrorString(ZDInternalError errZD)
+const char* GetErrorString(const ZDInternalError errZD)
 ```
 
 - **errZD** - the error value
