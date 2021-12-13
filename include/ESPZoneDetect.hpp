@@ -197,7 +197,7 @@ class ESPZoneDetect{
     std::tuple<ZDLookupResult, uint64_t> PointInPolygon(
       uint32_t polygonIndex, int32_t latFixedPoint, int32_t lonFixedPoint) const;
 
-    std::string getPosix(std::string tzName) const;
+    std::string getPosix(std::string& tzName) const;
 
     bool m_mounted{false}, m_fileOpen{false};
     zdErrorHandler_t m_zdErrorHandler{[](ZDInternalError, int32_t){}};
