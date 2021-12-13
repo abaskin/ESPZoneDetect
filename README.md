@@ -1,4 +1,4 @@
-# ESP GPS TimeZone
+# ESP GPS ZoneDetect
 
 This is a library to determine the timezone name for a given GPS coordinate. The
 library is a refactor of [ZoneDetect](https://github.com/BertoldVdb/ZoneDetect)
