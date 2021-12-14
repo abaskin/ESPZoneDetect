@@ -140,8 +140,6 @@ class ESPZoneDetect{
           return m_uint64Buffer.get();
         }
 
-        fs::File* fp() { return m_fp; }
-
        private:
         const size_t m_bufferSize { 1024 };
         fs::File* m_fp { nullptr };
