@@ -108,6 +108,7 @@ class ESPZoneDetect{
 
     const char* GetNotice() const;
     uint8_t GetTableType() const;
+    std::string getPosix(const std::string& tzName) const;
 
    private:
     class mmapRO {
@@ -195,8 +196,6 @@ class ESPZoneDetect{
     std::vector<double> PolygonToList(const uint32_t polygonId) const;
     std::tuple<ZDLookupResult, uint64_t> PointInPolygon(
       const uint32_t polygonIndex, const int32_t latFixedPoint, const int32_t lonFixedPoint) const;
-
-    std::string getPosix(const std::string& tzName) const;
 
     zdErrorHandler_t m_zdErrorHandler{[](ZDInternalError, int32_t){}};
     zdCleanup_t m_cleanUp{[](){}};
