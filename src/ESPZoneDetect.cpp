@@ -43,7 +43,12 @@ ESPZoneDetect::~ESPZoneDetect() {
 }
 
 bool ESPZoneDetect::OpenDatabaseFromMemory(void* buffer, const size_t length) {
+#ifdef ESP32
+  m_length = (uint32_t)length; 
+  if (m_length == 0) {
+#else
   if (m_length = (uint32_t)length; m_length == 0) {
+#endif
     m_zdErrorHandler(ZD_E_DB_SEEK, 0);
     return false;
   }
@@ -60,7 +65,12 @@ bool ESPZoneDetect::OpenDatabaseFromMemory(void* buffer, const size_t length) {
 }
 
 bool ESPZoneDetect::OpenDatabase(fs::File* fd) {
+#ifdef ESP32
+  m_length = fd->size();
+  if (m_length == 0) {
+#else
   if (m_length = fd->size(); m_length == 0) {
+#endif
     m_zdErrorHandler(ZD_E_DB_SIZE, errno);
     return false;
   }
@@ -86,8 +96,8 @@ bool ESPZoneDetect::OpenDatabase(fs::File* fd) {
   return true;
 }
 
-std::pair<std::vector<ESPZoneDetect::ZoneDetectResult>, double>
-ESPZoneDetect::Lookup(const double lat, const double lon) const {
+ESPZoneDetect::zdLookupResult_t ESPZoneDetect::Lookup(const double lat,
+                                                      const double lon) const {
   const auto latFixedPoint{DoubleToFixedPoint(lat, 90)};
   const auto lonFixedPoint{DoubleToFixedPoint(lon, 180)};
   uint64_t distanceSqrMin{(uint64_t)-1};
@@ -114,8 +124,17 @@ ESPZoneDetect::Lookup(const double lat, const double lon) const {
     if (latFixedPoint >= minLat) {
       if (latFixedPoint <= maxLat && lonFixedPoint >= minLon &&
           lonFixedPoint <= maxLon) {
+      #ifdef ESP32
+        const auto result {PointInPolygon(
+      #else
         const auto [lookupResult, distanceSqrMin]{PointInPolygon(
+      #endif
             m_dataOffset + polygonIndex, latFixedPoint, lonFixedPoint)};
+      #ifdef ESP32
+        auto& lookupResult { std::get<0>(result) };
+        // unused at present
+        // auto& distanceSqrMin { std::get<1>(result) };
+      #endif
         if (lookupResult == ZD_LOOKUP_PARSE_ERROR) { break; }
         if (lookupResult != ZD_LOOKUP_NOT_IN_ZONE) {
           results.emplace_back(ZoneDetectResult{
@@ -175,7 +194,12 @@ ESPZoneDetect::Lookup(const double lat, const double lon) const {
   for (auto& result : results) {
     uint32_t tmpIndex{m_metadataOffset + result.metaId};
     for (const auto& name : m_fieldNames) {
+    #ifdef ESP32
+      auto data = ParseString(tmpIndex); 
+      if (!data.empty()) {
+    #else
       if (auto data = ParseString(tmpIndex); !data.empty()) {
+    #endif
         result.fields[name] = data;
         continue;
       }
@@ -188,31 +212,38 @@ ESPZoneDetect::Lookup(const double lat, const double lon) const {
       .lookupResult = ZD_LOOKUP_END,
   });
 
-  return {results, sqrt((double)distanceSqrMin) * 90.0 /
-                   (double)(1 << (m_precision - 1))};
+  return zdLookupResult_t{results, sqrt((double)distanceSqrMin) * 90.0 /
+                                       (double)(1 << (m_precision - 1))};
 }
 
 std::string ESPZoneDetect::LookupName(
     const double lat, const double lon) const {
+#ifdef ESP32
+  auto lookupResult{Lookup(lat, lon)};
+  auto& result { std::get<0>(lookupResult) };
+  // Don't use variable at present
+  // auto& safezone { std::get<1>(lookupResult) };
+#else
   auto [result, safezone]{Lookup(lat, lon)};
+#endif
   if (result.empty() || result[0].lookupResult == ZD_LOOKUP_END) {
     return "";
   }
 
   std::string resultString{""};
-  const auto& fields { result[0].fields };
+  const auto& fields{result[0].fields};
   switch (GetTableType()) {
     case 'T':
-      if (auto found{fields.find("TimezoneIdPrefix")}; found != fields.end()) {
-        resultString += found->second;
+      if (fields.find("TimezoneIdPrefix") != fields.end()) {
+        resultString += fields.find("TimezoneIdPrefix")->second;
       }
-      if (auto found{fields.find("TimezoneId")}; found != fields.end()) {
-        resultString += found->second;
+      if (fields.find("TimezoneId") != fields.end()) {
+        resultString += fields.find("TimezoneId")->second;
       }
       break;
     case 'C':
-      if (auto found{fields.find("Name")}; found != fields.end()) {
-        resultString = found->second;
+      if (fields.find("Name") != fields.end()) {
+        resultString = fields.find("Name")->second;
       }
       break;
     default:
@@ -227,9 +258,10 @@ std::string ESPZoneDetect::LookupPosix(const double lat, const double lon) const
   return getPosix(tzName);
 }
 
-std::array<std::string, 2> ESPZoneDetect::LookupBoth(const double lat, const double lon) const {
+ESPZoneDetect::zdLookupBothResult_t ESPZoneDetect::LookupBoth(
+    const double lat, const double lon) const {
   auto tzName { LookupName(lat, lon) };
-  return { tzName, getPosix(tzName) };
+  return zdLookupBothResult_t{tzName, getPosix(tzName)};
 }
 
 std::string ESPZoneDetect::getPosix(const std::string& tzName) const {
@@ -237,7 +269,8 @@ std::string ESPZoneDetect::getPosix(const std::string& tzName) const {
     char tzStr[128];
     for (auto const& tz : tzData) {
       strcpy_P(tzStr, tz);
-      if (auto colon = strchr(tzStr, ':'); colon) {
+      auto colon = strchr(tzStr, ':');
+      if (colon) {
         *colon++ = '\0';
         if (tzName == tzStr) return colon;
       }
@@ -247,37 +280,47 @@ std::string ESPZoneDetect::getPosix(const std::string& tzName) const {
 }
 
 const char* ESPZoneDetect::LookupResultToString(ZDLookupResult result) const {
-  static std::unordered_map<ZDLookupResult, const char*> resultMap {
-    { ZD_LOOKUP_IGNORE,             "Ignore" },
-    { ZD_LOOKUP_END,                "End" },
-    { ZD_LOOKUP_PARSE_ERROR,        "Parsing error" },
-    { ZD_LOOKUP_NOT_IN_ZONE,        "Not in zone" },
-    { ZD_LOOKUP_IN_ZONE,            "In zone" },
-    { ZD_LOOKUP_IN_EXCLUDED_ZONE,   "In excluded zone" },
-    { ZD_LOOKUP_ON_BORDER_VERTEX,   "Target point is border vertex" },
-    { ZD_LOOKUP_ON_BORDER_SEGMENT,  "Target point is on border" },
-    { ZD_LOOKUP_PARSE_OK,           "Parsing Successful" },
-  };
+  using map_t = std::tuple<ZDLookupResult, const char*>;
+  const std::array<map_t, 9> resultMap{{
+      {map_t{ZD_LOOKUP_IGNORE,            "Ignore"}},
+      {map_t{ZD_LOOKUP_END,               "End"}},
+      {map_t{ZD_LOOKUP_PARSE_ERROR,       "Parsing error"}},
+      {map_t{ZD_LOOKUP_NOT_IN_ZONE,       "Not in zone"}},
+      {map_t{ZD_LOOKUP_IN_ZONE,           "In zone"}},
+      {map_t{ZD_LOOKUP_IN_EXCLUDED_ZONE,  "In excluded zone"}},
+      {map_t{ZD_LOOKUP_ON_BORDER_VERTEX,  "Target point is border vertex"}},
+      {map_t{ZD_LOOKUP_ON_BORDER_SEGMENT, "Target point is on border"}},
+      {map_t{ZD_LOOKUP_PARSE_OK,          "Parsing Successful"}},
+  }};
 
-  auto found{resultMap.find(result)};
-  return (found != resultMap.end()) ? found->second : "Unknown";
+  for (const auto& r : resultMap) {
+    if (std::get<0>(r) == result) {
+      return std::get<1>(r);
+    }
+  }
+  return "Unknown";
 }
 
 #define ZD_E_COULD_NOT(msg) "could not " msg
 const char* ESPZoneDetect::GetErrorString(ZDInternalError errZD) const {
-  static std::unordered_map<ZDInternalError, const char*> errorMap{
-      {ZD_E_DB_OPEN,      ZD_E_COULD_NOT("open database file")},
-      {ZD_E_DB_SIZE,      ZD_E_COULD_NOT("retrieve database file size")},
-      {ZD_E_DB_HUGE,      "database file is too large"},
-      {ZD_E_DB_SEEK,      ZD_E_COULD_NOT("seek database file")},
-      {ZD_E_DB_MMAP,      ZD_E_COULD_NOT("map database file to system memory")},
-      {ZD_E_DB_MUNMAP,    ZD_E_COULD_NOT("unmap database")},
-      {ZD_E_DB_CLOSE,     ZD_E_COULD_NOT("close database file")},
-      {ZD_E_PARSE_HEADER, ZD_E_COULD_NOT("parse database header")},
-  };
+  using map_t = std::tuple<ZDInternalError, const char*>;
+  const std::array<map_t, 8> errorMap {{
+      {map_t{ZD_E_DB_OPEN,      ZD_E_COULD_NOT("open database file")}},
+      {map_t{ZD_E_DB_SIZE,      ZD_E_COULD_NOT("retrieve database file size")}},
+      {map_t{ZD_E_DB_HUGE,      "database file is too large"}},
+      {map_t{ZD_E_DB_SEEK,      ZD_E_COULD_NOT("seek database file")}},
+      {map_t{ZD_E_DB_MMAP,      ZD_E_COULD_NOT("map database file to system memory")}},
+      {map_t{ZD_E_DB_MUNMAP,    ZD_E_COULD_NOT("unmap database")}},
+      {map_t{ZD_E_DB_CLOSE,     ZD_E_COULD_NOT("close database file")}},
+      {map_t{ZD_E_PARSE_HEADER, ZD_E_COULD_NOT("parse database header")}},
+  }};
 
-  auto found{errorMap.find(errZD)};
-  return (found != errorMap.end()) ? found->second : "unknown error";
+  for (const auto& e : errorMap) {
+    if (std::get<0>(e) == errZD) {
+      return std::get<1>(e);
+    }
+  }
+  return "unknown error";
 }
 #undef ZD_E_COULD_NOT
 
@@ -456,7 +499,8 @@ uint32_t ESPZoneDetect::Unshuffle(uint64_t w) const {
   return (uint32_t)w;
 }
 
-std::tuple<bool, int32_t, int32_t> ESPZoneDetect::FindPolygon(const uint32_t wantedId) const {
+ESPZoneDetect::zdFindPolygonResult_t ESPZoneDetect::FindPolygon(
+    const uint32_t wantedId) const {
   uint32_t polygonId { 0 },
            bboxIndex { m_bboxOffset },
            metadataIndex { 0 },
@@ -479,17 +523,14 @@ std::tuple<bool, int32_t, int32_t> ESPZoneDetect::FindPolygon(const uint32_t wan
     polygonIndex += (uint32_t)polygonIndexDelta;
 
     if (polygonId == wantedId) {
-      return {
-        true,
-        metadataIndex + m_metadataOffset,
-        polygonIndex + m_dataOffset
-      };
+      return zdFindPolygonResult_t{true, metadataIndex + m_metadataOffset,
+                                   polygonIndex + m_dataOffset};
     }
 
     polygonId++;
   }
 
-  return { false, 0, 0 };
+  return zdFindPolygonResult_t{false, 0, 0};
 }
 
 std::vector<int32_t> ESPZoneDetect::PolygonToListInternal(const uint32_t polygonIndex) const {
@@ -498,7 +539,15 @@ std::vector<int32_t> ESPZoneDetect::PolygonToListInternal(const uint32_t polygon
   std::vector<int32_t> list;
   bool loop { true };
   while (loop) {
+  #ifdef ESP32
+    auto pointResult { reader->GetPoint() };
+    auto& result { std::get<0>(pointResult) };
+    auto& pointLat{std::get<1>(pointResult)};
+    auto& pointLon{std::get<2>(pointResult)};
+    switch (result) {
+  #else
     switch (auto [result, pointLat, pointLon]{reader->GetPoint()}; result) {
+  #endif
       case Reader::PointOK:
         if (list.size() < 1048576) {
           list.push_back(pointLat);
@@ -519,9 +568,16 @@ std::vector<int32_t> ESPZoneDetect::PolygonToListInternal(const uint32_t polygon
 std::vector<double> ESPZoneDetect::PolygonToList(const uint32_t polygonId) const {
   std::vector<double> flData;
 
+#ifdef ESP32
+  auto result{FindPolygon(polygonId)};
+  auto &found { std::get<0>(result) };
+  // unused at present
+  // auto& metaDataIndex{std::get<1>(result)};
+  auto& polygonIndex{std::get<2>(result)};
+#else
   auto [found, metaDataIndex, polygonIndex] {FindPolygon(polygonId)};
-  if (!found) { return flData;
-  }
+#endif
+  if (!found) { return flData; }
 
   const auto data = PolygonToListInternal(polygonIndex);
 
@@ -538,9 +594,9 @@ std::vector<double> ESPZoneDetect::PolygonToList(const uint32_t polygonId) const
   return flData;
 }
 
-std::tuple<ESPZoneDetect::ZDLookupResult, uint64_t>
-  ESPZoneDetect::PointInPolygon(const uint32_t polygonIndex, const int32_t latFixedPoint,
-                                const int32_t lonFixedPoint) const {
+ESPZoneDetect::zdPointToPolygonResult_t ESPZoneDetect::PointInPolygon(
+    const uint32_t polygonIndex, const int32_t latFixedPoint,
+    const int32_t lonFixedPoint) const {
   int32_t prevLat { 0 }, prevLon { 0 },
           prevQuadrant { 0 }, winding { 0 };
   bool first { true };
@@ -549,30 +605,39 @@ std::tuple<ESPZoneDetect::ZDLookupResult, uint64_t>
   std::unique_ptr<Reader> reader{new Reader{this, polygonIndex}};
 
   while (true) {
+  #ifdef ESP32
+    auto pointResult { reader->GetPoint() };
+    auto& result{std::get<0>(pointResult)};
+    auto& pointLat{std::get<1>(pointResult)};
+    auto& pointLon{std::get<2>(pointResult)};
+#else
     auto [result, pointLat, pointLon] {reader->GetPoint()};
+  #endif
     switch (result) {
       case Reader::PointError:
-        return {ZD_LOOKUP_PARSE_ERROR, 0};
+        return zdPointToPolygonResult_t{ZD_LOOKUP_PARSE_ERROR, 0};
       case Reader::PointDone:
         switch (winding) {
           case -4:
-            return {ZD_LOOKUP_IN_ZONE, distanceSqrMin};
+            return zdPointToPolygonResult_t{ZD_LOOKUP_IN_ZONE, distanceSqrMin};
           case 0:
-            return {ZD_LOOKUP_NOT_IN_ZONE, distanceSqrMin};
+            return zdPointToPolygonResult_t{ZD_LOOKUP_NOT_IN_ZONE,
+                                            distanceSqrMin};
           case 4:
-            return {ZD_LOOKUP_IN_EXCLUDED_ZONE, distanceSqrMin};
+            return zdPointToPolygonResult_t{ZD_LOOKUP_IN_EXCLUDED_ZONE,
+                                            distanceSqrMin};
           default:
             break;
         }
         /* Should not happen */
-        return {ZD_LOOKUP_ON_BORDER_SEGMENT, 0};
+        return zdPointToPolygonResult_t{ZD_LOOKUP_ON_BORDER_SEGMENT, 0};
       default:
         break;
     }
 
     /* Check if point is ON the border */
     if (pointLat == latFixedPoint && pointLon == lonFixedPoint) {
-      return { ZD_LOOKUP_ON_BORDER_VERTEX, 0 };
+      return zdPointToPolygonResult_t{ZD_LOOKUP_ON_BORDER_VERTEX, 0};
     }
 
     /* Find quadrant */
@@ -621,7 +686,7 @@ std::tuple<ESPZoneDetect::ZDLookupResult, uint64_t>
       auto onStraight { PointInBox(pointLat, latFixedPoint, prevLat, pointLon,
                                    lonFixedPoint, prevLon) };
       if (lineIsStraight && (onStraight || windingNeedCompare)) {
-        return { ZD_LOOKUP_ON_BORDER_SEGMENT, 0 };
+        return zdPointToPolygonResult_t{ZD_LOOKUP_ON_BORDER_SEGMENT, 0};
       }
 
       /* Jumped two quadrants. */
@@ -630,7 +695,7 @@ std::tuple<ESPZoneDetect::ZDLookupResult, uint64_t>
         const int32_t intersectLon = (int32_t)(((double)latFixedPoint - b) / a);
         if (intersectLon >= lonFixedPoint - 1 &&
             intersectLon <= lonFixedPoint + 1) {
-          return { ZD_LOOKUP_ON_BORDER_SEGMENT, 0 };
+          return zdPointToPolygonResult_t{ZD_LOOKUP_ON_BORDER_SEGMENT, 0};
         }
 
         /* Ok, it's not. In which direction did we go round the target? */
@@ -707,7 +772,8 @@ ESPZoneDetect::Reader::GetPoint() {
 
   while (true) {
     if (m_done > 1) {
-      return { PointDone, m_pointLat, m_pointLon };
+      return std::tuple<ESPZoneDetect::Reader::GetPointResult, int32_t,
+                        int32_t>{PointDone, m_pointLat, m_pointLon};
     }
 
     bool referenceDone { false };
@@ -715,12 +781,14 @@ ESPZoneDetect::Reader::GetPoint() {
 
     if (!m_referenceDirection) {
       if (!m_parent->DecodeVariableLengthUnsigned(m_polygonIndex, point))
-        return {PointError, 0, 0};
+        return std::tuple<ESPZoneDetect::Reader::GetPointResult, int32_t,
+                          int32_t>{PointError, 0, 0};
     } else {
       if (m_referenceDirection > 0) {
         /* Read reference forward */
         if (!m_parent->DecodeVariableLengthUnsigned(m_referenceStart, point))
-          return {PointError, 0, 0};
+          return std::tuple<ESPZoneDetect::Reader::GetPointResult, int32_t,
+                            int32_t>{PointError, 0, 0};
         if (m_referenceStart >= m_referenceEnd) {
           referenceDone = true;
         }
@@ -728,7 +796,8 @@ ESPZoneDetect::Reader::GetPoint() {
         /* Read reference backwards */
         if (!m_parent->DecodeVariableLengthUnsignedReverse(m_referenceStart,
                                                            point))
-          return {PointError, 0, 0};
+          return std::tuple<ESPZoneDetect::Reader::GetPointResult, int32_t,
+                            int32_t>{PointError, 0, 0};
         if (m_referenceStart <= m_referenceEnd) {
           referenceDone = true;
         }
@@ -738,12 +807,14 @@ ESPZoneDetect::Reader::GetPoint() {
     if (!point) {
       /* This is a special marker, it is not allowed in reference mode */
       if (m_referenceDirection) {
-        return {PointError, 0, 0};
+        return std::tuple<ESPZoneDetect::Reader::GetPointResult, int32_t,
+                          int32_t>{PointError, 0, 0};
       }
 
       uint64_t value;
       if (!m_parent->DecodeVariableLengthUnsigned(m_polygonIndex, value))
-        return {PointError, 0, 0};
+        return std::tuple<ESPZoneDetect::Reader::GetPointResult, int32_t,
+                          int32_t>{PointError, 0, 0};
 
       switch (value) {
       case 0:
@@ -753,9 +824,11 @@ ESPZoneDetect::Reader::GetPoint() {
         int32_t diff;
         uint64_t start;
         if (!m_parent->DecodeVariableLengthUnsigned(m_polygonIndex, start))
-          return {PointError, 0, 0};
+          return std::tuple<ESPZoneDetect::Reader::GetPointResult, int32_t,
+                            int32_t>{PointError, 0, 0};
         if (!m_parent->DecodeVariableLengthSigned(m_polygonIndex, diff))
-          return {PointError, 0, 0};
+          return std::tuple<ESPZoneDetect::Reader::GetPointResult, int32_t,
+                            int32_t>{PointError, 0, 0};
 
         m_referenceStart = m_parent->m_dataOffset + (uint32_t)start;
         m_referenceEnd = m_parent->m_dataOffset + (uint32_t)(start + diff);
@@ -798,6 +871,7 @@ ESPZoneDetect::Reader::GetPoint() {
 
     if (referenceDone) { m_referenceDirection = 0; }
 
-    return { PointOK, m_pointLat, m_pointLon };
+    return std::tuple<ESPZoneDetect::Reader::GetPointResult, int32_t, int32_t>{
+        PointOK, m_pointLat, m_pointLon};
   }
 }

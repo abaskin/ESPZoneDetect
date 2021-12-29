@@ -88,6 +88,13 @@ class ESPZoneDetect{
 
     using zdErrorHandler_t = std::function<void(ZDInternalError, int32_t)>;
     using zdCleanup_t = std::function<void(void)>;
+    using zdLookupResult_t = 
+      std::pair<std::vector<ZoneDetectResult>, double>; // safezone
+    using zdLookupBothResult_t = std::array<std::string, 2>;
+
+    // used by private methods
+    using zdFindPolygonResult_t = std::tuple<bool, int32_t, int32_t>;
+    using zdPointToPolygonResult_t = std::tuple<ZDLookupResult, uint64_t>;
 
     ESPZoneDetect();
     ~ESPZoneDetect();
@@ -97,11 +104,10 @@ class ESPZoneDetect{
     void SetErrorHandler(zdErrorHandler_t handler);
     void SetCleanUp(zdCleanup_t cleanUp);
 
-    std::pair<std::vector<ZoneDetectResult>, double> // safezone
-        Lookup(const double lat, const double lon) const;
+    zdLookupResult_t Lookup(const double lat, const double lon) const;
     std::string LookupName(const double lat, const double lon) const;
     std::string LookupPosix(const double lat, const double lon) const;
-    std::array<std::string, 2> LookupBoth(const double lat, const double lon) const;
+    zdLookupBothResult_t LookupBoth(const double lat, const double lon) const;
 
     const char* LookupResultToString(const ZDLookupResult result) const;
     const char* GetErrorString(const ZDInternalError errZD) const;
@@ -137,7 +143,7 @@ class ESPZoneDetect{
         }
 
         uint64_t* atUint64(const uint32_t index) const {
-          std::memcpy(m_uint64Buffer.get(), at(index), sizeof(uint64_t));
+          memcpy(m_uint64Buffer.get(), at(index), sizeof(uint64_t));
           return m_uint64Buffer.get();
         }
 
@@ -191,11 +197,12 @@ class ESPZoneDetect{
                     const int32_t yl, const int32_t y, const int32_t yr) const;
     uint32_t Unshuffle(uint64_t w) const;
 
-    std::tuple<bool, int32_t, int32_t> FindPolygon(const uint32_t wantedId) const;
+    zdFindPolygonResult_t FindPolygon(const uint32_t wantedId) const;
     std::vector<int32_t> PolygonToListInternal(const uint32_t polygonIndex) const;
     std::vector<double> PolygonToList(const uint32_t polygonId) const;
-    std::tuple<ZDLookupResult, uint64_t> PointInPolygon(
-      const uint32_t polygonIndex, const int32_t latFixedPoint, const int32_t lonFixedPoint) const;
+    zdPointToPolygonResult_t PointInPolygon(const uint32_t polygonIndex,
+                                            const int32_t latFixedPoint,
+                                            const int32_t lonFixedPoint) const;
 
     zdErrorHandler_t m_zdErrorHandler{[](ZDInternalError, int32_t){}};
     zdCleanup_t m_cleanUp{[](){}};
